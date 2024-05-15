@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<section>
+  <article>
+    <h1>Make a reservation</h1>
+    <!--Begin row-->
+    <div class="row">
+      <!--Begin col-->
+      <div class="column">
+          {% csrf_token %}
+          <form method="POST" id="form">
+            <!-- {% csrf_token %} -->
+            <p>
+              <label for="first_name">Name:</label>
+              <input type="text" placeholder="Your Name" maxlength="200" required="" id="first_name">
+            </p>
+            
+            <p>
+                <label for="reservation_date">Reservation date:</label>
+                <input type="date" id="reservation_date">
+            </p>
+      
+            <p>
+              <label for="reservation_slot">Reservation time:</label>
+              <select id="reservation_slot">
+                <option value="0" disabled>Select time</option>
+              </select>
+            </p>
+            <button type="button" id="button">Reserve</button>
+          </form>
+      </div>
+      <!--End col-->
+
+      <!--Begin col-->
+      <div class="column">
+        <h2>Bookings For <span id="today"></span></h2>
+        <div id="bookings">
+        </div>
+      </div>
+      <!--End col-->
+    </div>
+    <!--End row-->
+
+
+
+
+  </article>
+</section>
+<script>
+
+// Esta función se ejecuta cuando la página se carga por primera vez o cuando se cambia la fecha de reserva.
+const date = new Date();
+document.getElementById('reservation_date').value = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+getBookings(); // Llama a la función getBookings() para cargar las reservas existentes para la fecha actual.
+
+// Esta función se llama cada vez que se cambia la fecha de reserva.
+document.getElementById('reservation_date').addEventListener('change', function() {
+  getBookings(); // Vuelve a cargar las reservas para la nueva fecha seleccionada.
+});
+
+// Función para obtener las reservas existentes para la fecha seleccionada.
+function getBookings() {
+  let reservedSlots = []; // Array para almacenar los slots de reserva existentes.
+  const date = document.getElementById('reservation_date').value; // Obtiene la fecha de reserva seleccionada.
+  document.getElementById('today').innerHTML = date; // Muestra la fecha de reserva seleccionada en la página.
+
+  // Realiza una solicitud fetch para obtener las reservas para la fecha seleccionada.
+  fetch("{% url 'bookings' %}" + '?date=' + date)
+    .then(r => r.json())
+    .then(data => {
+      reservedSlots = []; // Limpia el array de slots de reserva.
+      let bookings = ''; // Variable para almacenar el HTML de las reservas existentes.
+
+      // Itera sobre los datos de reserva obtenidos.
+      data.forEach(function(item) {
+        reservedSlots.push(item.fields.reservation_slot); // Agrega el slot de reserva al array.
+        // Genera el HTML para mostrar las reservas existentes.
+        bookings += `<p>${item.fields.first_name} - ${formatTime(item.fields.reservation_slot)}</p>`;
+      });
+
+      // Si no hay reservas, muestra un mensaje indicando que no hay reservas.
+      if (bookings === '') {
+        bookings = "No bookings";
+      }
+      // Actualiza el elemento HTML con las reservas existentes.
+      document.getElementById('bookings').innerHTML = bookings;
+
+      // Actualiza las opciones de horario después de obtener las reservas.
+      updateTimeOptions(reservedSlots);
+    });
+}
+
+// Función para actualizar las opciones de horario basadas en las reservas existentes.
+function updateTimeOptions(reservedSlots) {
+  const select = document.getElementById('reservation_slot');
+  for (let i = 1; i <= 24; i++) {
+    const option = select.options[i];
+    if (reservedSlots.includes(i)) {
+      // Si el horario está reservado, deshabilita la opción.
+      option.disabled = true;
+    } else {
+      // Si el horario no está reservado, habilita la opción.
+      option.disabled = false;
+    }
+  }
+}
+
+// Función para formatear la hora en formato AM/PM.
+function formatTime(time) {
+  const ampm = time < 12 ? 'AM' : 'PM';
+  const t = time < 12 ? time : time > 12 ? time - 12 : time;
+  const label = `${t} ${ampm}`;
+  return label;
+}
+
+// Event listener para el botón de reserva.
+document.getElementById('button').addEventListener('click', function(e) {
+  // Obtiene los datos del formulario.
+  const formdata = {
+    first_name: document.getElementById('first_name').value,
+    reservation_date: document.getElementById('reservation_date').value,
+    reservation_slot: document.getElementById('reservation_slot').value,
+  };
+
+  // Realiza una solicitud fetch para enviar los datos del formulario al servidor.
+  fetch("{% url 'bookings' %}", { method: 'post', body: JSON.stringify(formdata) })
+    .then(r => r.text())
+    .then(data => {
+      getBookings(); // Actualiza las reservas después de realizar la reserva.
+      // Restablece los valores del formulario después de realizar la reserva.
+      document.getElementById('first_name').value = '';
+      document.getElementById('reservation_slot').selectedIndex = 0;
+    });
+});
+
+// Función para generar las opciones de tiempo para el campo reservation_slot.
+function generateTimeOptions() {
+  // Define los horarios de operación del restaurante
+  const restaurantHours = {
+    'Mon': { start: 14, end: 22 },
+    'Tue': { start: 14, end: 22 },
+    'Wed': { start: 14, end: 22 },
+    'Thu': { start: 14, end: 22 },
+    'Fri': { start: 14, end: 22 },
+    'Sat': { start: 14, end: 23 },
+    'Sun': { start: 14, end: 21 }
+  };
+
+  const today = new Date();
+  const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'short' });
+  const currentHour = today.getHours();
+
+  let optionsHTML = '<option value="0" disabled>Select time</option>'; // Opción predeterminada
+  const startTime = restaurantHours[dayOfWeek].start;
+  const endTime = restaurantHours[dayOfWeek].end;
+
+  // Asegura que solo se muestren horarios futuros dentro del horario de operación del restaurante.
+  for (let i = startTime; i <= endTime; i++) {
+    if (currentHour < i || (currentHour === i && today.getMinutes() < 30)) {
+      const displayHour = i % 12 === 0 ? 12 : i % 12; // Convertir la hora a formato 12 horas
+      const ampm = i < 12 ? 'AM' : 'PM';
+      optionsHTML += `<option value="${i}">${displayHour}:00 ${ampm}</option>`;
+    }
+  }
+  return optionsHTML;
+}
+
+// Actualiza el elemento HTML con las opciones de slots de reserva.
+document.getElementById('reservation_slot').innerHTML = generateTimeOptions();
+
+
+/////////////////////////////este es el correcto//////////////////////////////
+</script>
+{% endblock %}
+
