@@ -4,13 +4,30 @@
 {% block content %}
 <section>
   <article>
+    
     <h1>All Reservations</h1>
     <!--Begin row-->
+    {% if user.is_authenticated %}
     <div class="row">
       <!--Begin col-->
       <div class="column">
-        <pre id="bookings"></pre>
+        <table id="bookings-table" border="1">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Booking Date</th>
+              <th>Reservation Slot</th>
+              <th>No. of Guests</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Rows will be inserted here by JavaScript -->
+          </tbody>
+        </table>
       </div>
+    {% else %}
+      <p>You do not have permission to access this page. Please <a href="/admin/">login</a> to view the reservations.</p>
+    {% endif %}
       <!--End col-->
 
       <!--Begin col-->
@@ -26,16 +43,40 @@
     </div>
     <!--End row-->
 
-
-
-
   </article>
 </section>
 <script>
-  const bookings = JSON.parse('{{ bookings|safe }}')
+  const bookings = JSON.parse('{{ bookings|escapejs }}');
   console.log(bookings);
-  const pretty_json = JSON.stringify(bookings,null,2)
-  document.getElementById('bookings').innerHTML = pretty_json
+
+  const tableBody = document.querySelector('#bookings-table tbody');
+
+  bookings.forEach(booking => {
+    const fields = booking.fields;
+    const row = document.createElement('tr');
+
+    // Create and append cells
+    const nameCell = document.createElement('td');
+    nameCell.textContent = fields.Name;
+    row.appendChild(nameCell);
+
+    const dateCell = document.createElement('td');
+    dateCell.textContent = fields.BookingDate;
+    row.appendChild(dateCell);
+
+    const slotCell = document.createElement('td');
+    const reservationSlot = fields.reservation_slot;
+    const hours = reservationSlot % 12 || 12;
+    const ampm = reservationSlot < 12 ? 'AM' : 'PM';
+    slotCell.textContent = `${hours} ${ampm}`;
+    row.appendChild(slotCell);
+
+    const guestsCell = document.createElement('td');
+    guestsCell.textContent = fields.No_of_guests;
+    row.appendChild(guestsCell);
+
+    tableBody.appendChild(row);
+  });
 </script>
 {% endblock %}
 
