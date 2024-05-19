@@ -152,3 +152,5 @@ TESTS = [
     # Especifica la ruta a la carpeta de pruebas
     os.path.join(BASE_DIR, 'tests'),
 ]
+
+LOGIN_URL = 'login' 

@@ -8,9 +8,9 @@ from datetime import datetime
 import json
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
+from django.contrib.auth.decorators import login_required
 
 
-# Create your views here.
 def home(request):
     return render(request, 'index.html')
 
